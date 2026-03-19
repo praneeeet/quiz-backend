@@ -4,6 +4,14 @@ A comprehensive REST API for a quiz application that handles user management, AI
 
 ---
 
+## Key Features
+- **Multi-provider AI Fallback**: Self-healing question generation that tries multiple providers in sequence (Groq → Gemini → OpenRouter) to ensure 100% uptime even if one service is down.
+- **RESTful Architecture**: Clean, versioned API endpoints with JWT authentication and role-based access control.
+- **Interactive Attempts**: Real-time quiz taking with automated scoring and post-completion answer reveal.
+- **Performance Analytics**: Detailed personal and global statistics with efficient database denormalization.
+
+---
+
 ## Local Setup Instructions
 
 ### Prerequisites
@@ -54,9 +62,9 @@ DATABASE_PASSWORD=your_password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 GROQ_API_KEY=your-groq-api-key
+GEMINI_API_KEY=your-gemini-api-key
+OPENROUTER_API_KEY=your-openrouter-api-key
 ```
-
-Get a free Groq API key at https://console.groq.com/keys
 
 ### Step 5: Run migrations and create admin user
 ```bash
@@ -86,7 +94,9 @@ Authentication uses JWT tokens with a short-lived access token (60 minutes) and 
 
 The User model extends Django's AbstractUser with UUID primary keys and a role-based access control system. UUIDs prevent sequential ID enumeration on a public API. The role field (admin/player) is separate from Django's is_staff because app-level permissions and Django admin panel access are different concerns. Admin users have full visibility across the system — they see all quizzes, all attempts, and can manage user accounts. Players only see published quizzes and their own data.
 
-Quiz creation triggers AI question generation synchronously through a service layer that abstracts the AI provider behind a single class. The Quiz model uses a status field (pending → generating → ready → failed) to track the generation lifecycle, which also makes the system ready for async processing with Celery without any schema changes. The AI service validates each generated question individually — if some are malformed, the valid ones are saved rather than failing the entire quiz. Every AI call is logged with the prompt, response, timing, and any errors for debugging.
+Quiz creation triggers AI question generation through a multi-provider fallback system. The system implements a chain-of-responsibility pattern: it first attempts generation via Groq (Llama 3.3 70B), then falls back to Google Gemini (2.0 Flash) if Groq fails, and finally uses OpenRouter as a last resort. This multi-provider approach was chosen for maximum reliability — external AI services often have strict rate limits or occasional downtime. By depending on a chain of providers rather than a single one, the system ensures that quiz creation remains functional even during service interruptions from one or two providers.
+
+The generation lifecycle is tracked via a status field on the Quiz model (pending → generating → ready → failed), making the system ready for future asynchronous processing with Celery. Every generation attempt is logged in detail, capturing the exact prompt, raw response, timing, and specific provider used, which is critical for monitoring costs and debugging parser failures.
 
 The attempt flow is designed around answer security. When a user starts an attempt, questions are served without correct answers or explanations. Answers are submitted one at a time and the response confirms receipt but does not reveal correctness. Only when the user completes the attempt does the system calculate the score and reveal all correct answers, explanations, and per-question results. This is enforced at the serializer level — different serializers physically include or exclude fields based on attempt status, so even direct API calls cannot bypass this.
 
