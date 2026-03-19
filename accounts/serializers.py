@@ -32,3 +32,23 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'email', 'role', 'date_joined', 'updated_at')
         read_only_fields = ('id', 'role', 'date_joined', 'updated_at')
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Serializer for admin user management — can view and change role/is_active"""
+    total_quizzes_created = serializers.SerializerMethodField()
+    total_attempts = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'role', 'is_active',
+            'date_joined', 'updated_at', 'total_quizzes_created', 'total_attempts'
+        )
+        read_only_fields = ('id', 'username', 'email', 'date_joined', 'updated_at',
+                            'total_quizzes_created', 'total_attempts')
+
+    def get_total_quizzes_created(self, obj):
+        return obj.created_quizzes.count()
+
+    def get_total_attempts(self, obj):
+        return obj.quiz_attempts.count()

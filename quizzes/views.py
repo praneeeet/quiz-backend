@@ -1,15 +1,17 @@
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.core.cache import cache
 from django.db.models import Count, Q
 from .models import Category, Quiz, Question
 from .serializers import (
     CategorySerializer, QuizListSerializer, QuizDetailSerializer,
-    QuizCreateSerializer, QuizUpdateSerializer
+    QuizDetailPlayerSerializer, QuizCreateSerializer, QuizUpdateSerializer
 )
 from accounts.permissions import IsAdmin
 from .permissions import IsOwnerOrAdmin, IsQuizOwner
 from ai_service.generator import QuizGenerator
+from .throttles import QuizCreateThrottle
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.annotate(quiz_count=Count('quizzes'))
@@ -22,20 +24,48 @@ class CategoryViewSet(viewsets.ModelViewSet):
             permission_classes = [permissions.IsAuthenticated, IsAdmin]
         return [permission() for permission in permission_classes]
 
+    def list(self, request, *args, **kwargs):
+        cache_key = 'categories_list'
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=300)
+        return response
+
+    def perform_create(self, serializer):
+        serializer.save()
+        cache.delete('categories_list')
+
+    def perform_update(self, serializer):
+        serializer.save()
+        cache.delete('categories_list')
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        cache.delete('categories_list')
+
 class QuizViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['created_at', 'title']
     ordering = ['-created_at']
+    def get_throttles(self):
+        if self.action == 'create':
+            return [QuizCreateThrottle()]
+        return super().get_throttles()
 
+    
     def get_queryset(self):
         user = self.request.user
         queryset = Quiz.objects.select_related('category', 'created_by').prefetch_related('questions')
 
         if self.action == 'list':
-            # return only published quizzes with status='ready', OR created_by=user
-            queryset = queryset.filter(
-                Q(is_published=True, status=Quiz.Status.READY) | Q(created_by=user)
-            ).distinct()
+            if user.is_admin:
+                pass  # Admin sees all quizzes, no filter
+            else:
+                queryset = queryset.filter(
+                    Q(is_published=True, status=Quiz.Status.READY) | Q(created_by=user)
+                ).distinct()
         elif self.action == 'my_quizzes':
             queryset = queryset.filter(created_by=user)
         
@@ -63,13 +93,19 @@ class QuizViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ['list', 'my_quizzes']:
             return QuizListSerializer
-        if self.action == 'retrieve':
-            return QuizDetailSerializer
         if self.action == 'create':
             return QuizCreateSerializer
         if self.action in ['update', 'partial_update']:
             return QuizUpdateSerializer
         return QuizListSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if request.user.is_admin or instance.created_by == request.user:
+            serializer = QuizDetailSerializer(instance)
+        else:
+            serializer = QuizDetailPlayerSerializer(instance)
+        return Response(serializer.data)
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'my_quizzes']:
@@ -117,10 +153,14 @@ class QuizViewSet(viewsets.ModelViewSet):
             # Trigger regeneration
             generator = QuizGenerator()
             generator.generate_questions(quiz)
+            
+            # Reload from DB to get updated status and questions
+            quiz.refresh_from_db()
+            
             return Response({
                 "status": "success",
-                "message": "Quiz regeneration started.",
-                "current_status": quiz.status
+                "message": "Quiz regeneration completed.",
+                "quiz": self.get_serializer(quiz).data
             })
         return Response({
             "error": "invalid_operation",

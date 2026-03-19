@@ -1,1 +1,43 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env/
+
+# Environment variables
 .env
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+
+# Migrations (optional - usually keep them)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Static & media
+/staticfiles/
+/media/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing / coverage
+.coverage
+htmlcov/
+
+# PostgreSQL (no local DB files needed)
+*.egg-info/
+.eggs/
+dist/
+build/

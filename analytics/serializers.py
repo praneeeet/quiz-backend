@@ -43,3 +43,14 @@ class LeaderboardEntrySerializer(serializers.Serializer):
     total_quizzes_completed = serializers.IntegerField()
     average_score = serializers.DecimalField(max_digits=5, decimal_places=2)
     total_correct_answers = serializers.IntegerField()
+
+class SystemStatsSerializer(serializers.Serializer):
+    total_users = serializers.IntegerField()
+    active_users = serializers.IntegerField()
+    total_quizzes = serializers.IntegerField()
+    published_quizzes = serializers.IntegerField()
+    total_attempts = serializers.IntegerField()
+    completed_attempts = serializers.IntegerField()
+    completion_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
+    average_score = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
+    most_popular_quizzes = serializers.ListField(child=serializers.DictField())

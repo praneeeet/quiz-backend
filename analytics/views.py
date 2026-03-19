@@ -7,9 +7,10 @@ from django.contrib.auth import get_user_model
 from quizzes.models import Quiz, Question
 from attempts.models import QuizAttempt, AttemptAnswer
 from .serializers import (
-    UserStatsSerializer, CategoryPerformanceSerializer, 
+    UserStatsSerializer, CategoryPerformanceSerializer,
     QuizStatsSerializer, LeaderboardEntrySerializer
 )
+from django.core.cache import cache
 
 User = get_user_model()
 
@@ -18,7 +19,6 @@ class UserStatsView(APIView):
 
     def get(self, request):
         user = request.user
-        
         # Get all completed attempts for this user
         attempts = QuizAttempt.objects.filter(user=user)
         completed_attempts = attempts.filter(status=QuizAttempt.Status.COMPLETED)
@@ -54,14 +54,14 @@ class UserStatsView(APIView):
             'overall_accuracy': overall_accuracy,
         }
         
-        return Response(UserStatsSerializer(data).data)
+        serialized = UserStatsSerializer(data).data
+        return Response(serialized)
 
 class CategoryPerformanceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        
         # Get completed attempts grouped by quiz category
         category_stats = (
             QuizAttempt.objects
@@ -88,7 +88,8 @@ class CategoryPerformanceView(APIView):
             for stat in category_stats
         ]
         
-        return Response(CategoryPerformanceSerializer(data, many=True).data)
+        serialized = CategoryPerformanceSerializer(data, many=True).data
+        return Response(serialized)
 
 class QuizStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -102,7 +103,17 @@ class QuizStatsView(APIView):
                 {'error': 'permission_denied', 'message': 'You do not have permission to view these stats.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+        # Permission check (already exists)
+        if quiz.created_by != request.user and not request.user.is_admin:
+            return Response(...)
+
+
+        cache_key = f'quiz_stats_{quiz_id}'
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+
+        # Rest of computation stays the same...
         # Aggregate attempt stats
         all_attempts = QuizAttempt.objects.filter(quiz=quiz)
         completed = all_attempts.filter(status=QuizAttempt.Status.COMPLETED)
@@ -150,17 +161,64 @@ class QuizStatsView(APIView):
             'question_breakdown': question_breakdown,
         }
         
-        return Response(QuizStatsSerializer(data).data)
+        serialized = QuizStatsSerializer(data).data
+        cache.set(cache_key, serialized, timeout=120)
+        return Response(serialized)
+
+class SystemStatsView(APIView):
+    """System-wide analytics — admin only"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_admin:
+            return Response(
+                {'error': 'permission_denied', 'message': 'Admin access required.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        total_users = User.objects.count()
+        active_users = User.objects.filter(is_active=True).count()
+        total_quizzes = Quiz.objects.count()
+        published_quizzes = Quiz.objects.filter(is_published=True).count()
+        total_attempts = QuizAttempt.objects.count()
+        completed_attempts = QuizAttempt.objects.filter(status=QuizAttempt.Status.COMPLETED).count()
+
+        avg_score = QuizAttempt.objects.filter(
+            status=QuizAttempt.Status.COMPLETED
+        ).aggregate(avg=Avg('score_percentage'))['avg']
+
+        popular_quizzes = (
+            Quiz.objects.filter(attempts__isnull=False)
+            .annotate(attempt_count=Count('attempts'))
+            .order_by('-attempt_count')[:5]
+            .values('id', 'title', 'attempt_count')
+        )
+
+        completion_rate = (completed_attempts / total_attempts * 100) if total_attempts > 0 else 0
+
+        data = {
+            'total_users': total_users,
+            'active_users': active_users,
+            'total_quizzes': total_quizzes,
+            'published_quizzes': published_quizzes,
+            'total_attempts': total_attempts,
+            'completed_attempts': completed_attempts,
+            'completion_rate': round(completion_rate, 2),
+            'average_score': avg_score,
+            'most_popular_quizzes': list(popular_quizzes),
+        }
+
+        return Response(data)
+
 
 class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        category_id = request.query_params.get('category')
         # Base queryset: users with completed attempts
         attempts_qs = QuizAttempt.objects.filter(status=QuizAttempt.Status.COMPLETED)
-        
-        # Optional category filter
-        category_id = request.query_params.get('category')
+
         if category_id:
             attempts_qs = attempts_qs.filter(quiz__category_id=category_id)
         
@@ -188,4 +246,5 @@ class LeaderboardView(APIView):
             for idx, entry in enumerate(leaderboard)
         ]
         
-        return Response(LeaderboardEntrySerializer(data, many=True).data)
+        serialized = LeaderboardEntrySerializer(data, many=True).data
+        return Response(serialized)

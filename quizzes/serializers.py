@@ -43,6 +43,13 @@ class QuizDetailSerializer(QuizListSerializer):
     class Meta(QuizListSerializer.Meta):
         fields = QuizListSerializer.Meta.fields + ('questions',)
 
+class QuizDetailPlayerSerializer(QuizListSerializer):
+    """Quiz detail for players — hides correct answers"""
+    questions = QuestionPlayerSerializer(many=True, read_only=True)
+
+    class Meta(QuizListSerializer.Meta):
+        fields = QuizListSerializer.Meta.fields + ('questions',)
+
 class QuizCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quiz

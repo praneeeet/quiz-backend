@@ -11,12 +11,16 @@ from .serializers import (
     AttemptStartSerializer, AttemptCompleteSerializer
 )
 from .permissions import IsAttemptOwner
+from django.core.cache import cache
 
 class QuizAttemptViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return QuizAttempt.objects.filter(user=self.request.user).select_related('quiz', 'user').prefetch_related('answers', 'answers__question')
+        queryset = QuizAttempt.objects.select_related('quiz', 'user').prefetch_related('answers', 'answers__question')
+        if self.request.user.is_admin:
+            return queryset
+        return queryset.filter(user=self.request.user)
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -32,7 +36,7 @@ class QuizAttemptViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
         return QuizAttemptListSerializer
 
     def get_permissions(self):
-        if self.action in ['retrieve', 'submit_answer', 'complete']:
+        if self.action in ['submit_answer', 'complete']:
             permission_classes = [permissions.IsAuthenticated, IsAttemptOwner]
         else:
             permission_classes = [permissions.IsAuthenticated]
@@ -103,5 +107,6 @@ class QuizAttemptViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
             return Response({"error": "attempt_already_completed", "message": "This attempt is already completed."}, status=status.HTTP_400_BAD_REQUEST)
         
         attempt.calculate_score()
+        cache.delete(f'quiz_stats_{attempt.quiz.id}')
         serializer = QuizAttemptDetailSerializer(attempt)
         return Response(serializer.data, status=status.HTTP_200_OK)
