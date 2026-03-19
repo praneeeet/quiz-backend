@@ -137,6 +137,6 @@ SIMPLE_JWT = {
 }
 
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', str(DEBUG)).lower() == 'true'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
