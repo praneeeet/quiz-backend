@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz API — Workflow Tester</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface2: #1a1a26;
+            --border: #2a2a3a;
+            --text: #e4e4ed;
+            --text2: #8888a0;
+            --accent: #6c5ce7;
+            --accent2: #a29bfe;
+            --green: #00b894;
+            --red: #e17055;
+            --orange: #fdcb6e;
+            --blue: #74b9ff;
+            --radius: 10px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ─── Layout ─── */
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            padding: 0 20px 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .sidebar-logo h1 {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-logo span {
+            font-size: 11px;
+            color: var(--text2);
+            display: block;
+            margin-top: 4px;
+        }
+
+        .nav-section {
+            padding: 8px 12px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text2);
+            margin-top: 8px;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text2);
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item:hover {
+            background: var(--surface2);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: var(--surface2);
+            color: var(--accent2);
+            border-left-color: var(--accent);
+        }
+
+        .nav-item .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text2);
+            flex-shrink: 0;
+        }
+
+        .nav-item.active .dot {
+            background: var(--accent);
+        }
+
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 32px;
+            max-width: 960px;
+        }
+
+        /* ─── Auth Bar ─── */
+        .auth-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .auth-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .auth-bar .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .auth-bar .username {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .auth-bar .role {
+            font-size: 11px;
+            color: var(--accent2);
+            background: rgba(108, 92, 231, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .auth-bar .not-logged-in {
+            font-size: 13px;
+            color: var(--text2);
+        }
+
+        /* ─── Page Header ─── */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            font-size: 13px;
+            color: var(--text2);
+        }
+
+        /* ─── Cards ─── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title .badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .badge-green {
+            background: rgba(0, 184, 148, 0.15);
+            color: var(--green);
+        }
+
+        .badge-red {
+            background: rgba(225, 112, 85, 0.15);
+            color: var(--red);
+        }
+
+        .badge-orange {
+            background: rgba(253, 203, 110, 0.15);
+            color: var(--orange);
+        }
+
+        .badge-blue {
+            background: rgba(116, 185, 255, 0.15);
+            color: var(--blue);
+        }
+
+        .badge-purple {
+            background: rgba(108, 92, 231, 0.15);
+            color: var(--accent2);
+        }
+
+        /* ─── Forms ─── */
+        .form-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input,
+        select,
+        textarea {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        /* ─── Buttons ─── */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #7c6cf0);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--green);
+            color: white;
+        }
+
+        .btn-success:hover {
+            opacity: 0.9;
+        }
+
+        .btn-danger {
+            background: var(--red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--accent);
+            color: var(--accent2);
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* ─── Response Panel ─── */
+        .response-panel {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .response-header {
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+        }
+
+        .response-header .status {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        .status-2xx {
+            color: var(--green);
+        }
+
+        .status-4xx {
+            color: var(--orange);
+        }
+
+        .status-5xx {
+            color: var(--red);
+        }
+
+        .response-body {
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text2);
+        }
+
+        /* ─── Quiz Cards ─── */
+        .quiz-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+
+        .quiz-card:hover {
+            border-color: var(--accent);
+        }
+
+        .quiz-card .quiz-info h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .quiz-card .quiz-meta {
+            font-size: 12px;
+            color: var(--text2);
+            display: flex;
+            gap: 12px;
+        }
+
+        .quiz-card .quiz-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* ─── Question during attempt ─── */
+        .question-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+
+        .question-card h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+
+        .question-card .q-number {
+            color: var(--accent2);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            border-color: var(--accent);
+            background: rgba(108, 92, 231, 0.08);
+        }
+
+        .option-btn.selected {
+            border-color: var(--accent);
+            background: rgba(108, 92, 231, 0.15);
+            color: var(--accent2);
+        }
+
+        .option-btn.correct {
+            border-color: var(--green);
+            background: rgba(0, 184, 148, 0.12);
+            color: var(--green);
+        }
+
+        .option-btn.wrong {
+            border-color: var(--red);
+            background: rgba(225, 112, 85, 0.12);
+            color: var(--red);
+        }
+
+        .option-btn:disabled {
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        .explanation {
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(0, 184, 148, 0.08);
+            border-left: 3px solid var(--green);
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+
+        /* ─── Stats Grid ─── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .stat-value.green {
+            color: var(--green);
+        }
+
+        .stat-value.blue {
+            color: var(--blue);
+        }
+
+        .stat-value.purple {
+            color: var(--accent2);
+        }
+
+        .stat-value.orange {
+            color: var(--orange);
+        }
+
+        /* ─── Score Display ─── */
+        .score-display {
+            text-align: center;
+            padding: 32px;
+            margin-bottom: 20px;
+        }
+
+        .score-display .big-score {
+            font-size: 64px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .score-display .score-sub {
+            font-size: 14px;
+            color: var(--text2);
+            margin-top: 8px;
+        }
+
+        /* ─── Leaderboard ─── */
+        .lb-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            gap: 14px;
+        }
+
+        .lb-row:last-child {
+            border-bottom: none;
+        }
+
+        .lb-rank {
+            font-size: 16px;
+            font-weight: 700;
+            width: 30px;
+            text-align: center;
+        }
+
+        .lb-rank.gold {
+            color: #ffd700;
+        }
+
+        .lb-rank.silver {
+            color: #c0c0c0;
+        }
+
+        .lb-rank.bronze {
+            color: #cd7f32;
+        }
+
+        .lb-name {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .lb-score {
+            font-size: 14px;
+            color: var(--accent2);
+            font-weight: 600;
+        }
+
+        /* ─── Section divider ─── */
+        .section-page {
+            display: none;
+        }
+
+        .section-page.active {
+            display: block;
+        }
+
+        /* ─── Loading ─── */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text2);
+            font-size: 13px;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ─── Scrollbar ─── */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* ─── Toast ─── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+            max-width: 400px;
+        }
+
+        .toast-success {
+            background: var(--green);
+            color: white;
+        }
+
+        .toast-error {
+            background: var(--red);
+            color: white;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                <h1>Quiz API</h1>
+                <span>Workflow Tester</span>
+            </div>
+
+            <div class="nav-section">Authentication</div>
+            <div class="nav-item active" onclick="showPage('auth')"><span class="dot"></span> Register / Login</div>
+
+            <div class="nav-section">Quiz Management</div>
+            <div class="nav-item" onclick="showPage('categories')"><span class="dot"></span> Categories</div>
+            <div class="nav-item" onclick="showPage('create-quiz')"><span class="dot"></span> Create Quiz</div>
+            <div class="nav-item" onclick="showPage('my-quizzes')"><span class="dot"></span> My Quizzes</div>
+            <div class="nav-item" onclick="showPage('browse-quizzes')"><span class="dot"></span> Browse Quizzes</div>
+
+            <div class="nav-section">Take Quiz</div>
+            <div class="nav-item" onclick="showPage('attempt')"><span class="dot"></span> Current Attempt</div>
+
+            <div class="nav-section">Analytics</div>
+            <div class="nav-item" onclick="showPage('my-stats')"><span class="dot"></span> My Stats</div>
+            <div class="nav-item" onclick="showPage('leaderboard')"><span class="dot"></span> Leaderboard</div>
+
+            <div class="nav-section">Debug</div>
+            <div class="nav-item" onclick="showPage('api-log')"><span class="dot"></span> API Log</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <!-- Auth Bar -->
+            <div class="auth-bar">
+                <div class="user-info" id="auth-status">
+                    <span class="not-logged-in">Not logged in — Register or Login first</span>
+                </div>
+                <button class="btn btn-sm btn-outline" id="logout-btn" onclick="doLogout()"
+                    style="display:none">Logout</button>
+            </div>
+
+            <!-- ═══════ AUTH PAGE ═══════ -->
+            <div class="section-page active" id="page-auth">
+                <div class="page-header">
+                    <h2>Authentication</h2>
+                    <p>Register a new account or login to get started</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Register New User</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="reg-username" placeholder="player1">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="reg-email" placeholder="player1@example.com">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="reg-password" placeholder="Min 8 chars">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" id="reg-password-confirm" placeholder="Same password">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select id="reg-role">
+                                <option value="player">Player</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="justify-content:flex-end">
+                            <button class="btn btn-primary" onclick="doRegister()">Register</button>
+                        </div>
+                    </div>
+                    <div class="response-panel hidden" id="reg-response"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Login</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="login-username" placeholder="player1">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="login-password" placeholder="Your password">
+                        </div>
+                        <div class="form-group" style="justify-content:flex-end">
+                            <button class="btn btn-primary" onclick="doLogin()">Login</button>
+                        </div>
+                    </div>
+                    <div class="response-panel hidden" id="login-response"></div>
+                </div>
+            </div>
+
+            <!-- ═══════ CATEGORIES PAGE ═══════ -->
+            <div class="section-page" id="page-categories">
+                <div class="page-header">
+                    <h2>Categories</h2>
+                    <p>Manage quiz categories (admin only for create/edit)</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Create Category <span class="badge badge-purple">Admin</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="cat-name" placeholder="Python">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="cat-desc" placeholder="Python programming quizzes">
+                        </div>
+                        <div class="form-group" style="justify-content:flex-end">
+                            <button class="btn btn-primary btn-sm" onclick="createCategory()">Create</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">All Categories</div>
+                    <div id="categories-list">
+                        <div class="loading">
+                            <div class="spinner"></div>Click to load...
+                        </div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="loadCategories()" style="margin-top:8px">Load
+                        Categories</button>
+                </div>
+            </div>
+
+            <!-- ═══════ CREATE QUIZ PAGE ═══════ -->
+            <div class="section-page" id="page-create-quiz">
+                <div class="page-header">
+                    <h2>Create Quiz</h2>
+                    <p>Create a quiz and AI will generate questions automatically</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">New Quiz</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="quiz-title" placeholder="Python Basics">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Topic (detailed — this is sent to AI)</label>
+                            <textarea id="quiz-topic"
+                                placeholder="Python fundamentals including variables, data types, loops, and functions"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Category ID (optional, paste UUID)</label>
+                            <input type="text" id="quiz-category" placeholder="Leave empty for no category">
+                        </div>
+                        <div class="form-group">
+                            <label>Difficulty</label>
+                            <select id="quiz-difficulty">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Number of Questions</label>
+                            <input type="number" id="quiz-count" value="5" min="1" max="50">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="createQuiz()">Create Quiz (AI Generation)</button>
+                    <div class="response-panel hidden" id="quiz-create-response"></div>
+                </div>
+            </div>
+
+            <!-- ═══════ MY QUIZZES PAGE ═══════ -->
+            <div class="section-page" id="page-my-quizzes">
+                <div class="page-header">
+                    <h2>My Quizzes</h2>
+                    <p>Quizzes you've created</p>
+                </div>
+
+                <div class="card">
+                    <div id="my-quizzes-list">
+                        <div class="loading">Click Load to fetch your quizzes</div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="loadMyQuizzes()" style="margin-top:8px">Load My
+                        Quizzes</button>
+                </div>
+            </div>
+
+            <!-- ═══════ BROWSE QUIZZES PAGE ═══════ -->
+            <div class="section-page" id="page-browse-quizzes">
+                <div class="page-header">
+                    <h2>Browse Quizzes</h2>
+                    <p>All available published quizzes</p>
+                </div>
+
+                <div class="card">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Filter by Difficulty</label>
+                            <select id="filter-difficulty" onchange="loadAllQuizzes()">
+                                <option value="">All</option>
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Search</label>
+                            <input type="text" id="filter-search" placeholder="Search topic..."
+                                onkeyup="if(event.key==='Enter')loadAllQuizzes()">
+                        </div>
+                        <div class="form-group" style="justify-content:flex-end">
+                            <button class="btn btn-outline btn-sm" onclick="loadAllQuizzes()">Search</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div id="all-quizzes-list">
+                        <div class="loading">Click Search or Load to browse</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ ATTEMPT PAGE ═══════ -->
+            <div class="section-page" id="page-attempt">
+                <div class="page-header">
+                    <h2>Quiz Attempt</h2>
+                    <p id="attempt-subtitle">Start a quiz from Browse or My Quizzes</p>
+                </div>
+
+                <div id="attempt-area">
+                    <div class="card" id="attempt-not-started">
+                        <p style="color:var(--text2); font-size:14px;">No active attempt. Go to Browse Quizzes and click
+                            "Start Quiz" on one.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ MY STATS PAGE ═══════ -->
+            <div class="section-page" id="page-my-stats">
+                <div class="page-header">
+                    <h2>My Stats</h2>
+                    <p>Your performance analytics</p>
+                </div>
+
+                <div id="stats-area">
+                    <button class="btn btn-primary" onclick="loadMyStats()">Load My Stats</button>
+                </div>
+            </div>
+
+            <!-- ═══════ LEADERBOARD PAGE ═══════ -->
+            <div class="section-page" id="page-leaderboard">
+                <div class="page-header">
+                    <h2>Leaderboard</h2>
+                    <p>Top performers across all quizzes</p>
+                </div>
+
+                <div class="card">
+                    <div id="leaderboard-area">
+                        <button class="btn btn-primary" onclick="loadLeaderboard()">Load Leaderboard</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ API LOG PAGE ═══════ -->
+            <div class="section-page" id="page-api-log">
+                <div class="page-header">
+                    <h2>API Log</h2>
+                    <p>All API calls made during this session</p>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn-outline btn-sm"
+                        onclick="document.getElementById('api-log-entries').innerHTML=''">Clear Log</button>
+                    <div id="api-log-entries" style="margin-top:12px"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ═══════ STATE ═══════
+        const API = 'http://127.0.0.1:8000/api';
+        let accessToken = null;
+        let refreshToken = null;
+        let currentUser = null;
+        let currentAttempt = null;
+        let currentQuestions = [];
+        let answeredQuestions = {};
+
+        // ═══════ API HELPER ═══════
+        async function api(method, path, body = null, skipAuth = false) {
+            const url = API + path;
+            const headers = { 'Content-Type': 'application/json' };
+            if (accessToken && !skipAuth) headers['Authorization'] = `Bearer ${accessToken}`;
+
+            const opts = { method, headers };
+            if (body) opts.body = JSON.stringify(body);
+
+            const start = Date.now();
+            let response, data, error;
+
+            try {
+                response = await fetch(url, opts);
+                const text = await response.text();
+                try { data = JSON.parse(text); } catch { data = text; }
+            } catch (e) {
+                error = e.message;
+                data = { error: 'network_error', message: e.message };
+            }
+
+            const elapsed = Date.now() - start;
+            logApiCall(method, path, response?.status, elapsed, body, data);
+
+            return { status: response?.status, data, ok: response?.ok };
+        }
+
+        function logApiCall(method, path, status, ms, body, response) {
+            const log = document.getElementById('api-log-entries');
+            const statusClass = status >= 500 ? 'status-5xx' : status >= 400 ? 'status-4xx' : 'status-2xx';
+            const entry = document.createElement('div');
+            entry.className = 'response-panel';
+            entry.style.marginBottom = '8px';
+            entry.innerHTML = `
+    <div class="response-header">
+      <span><strong>${method}</strong> ${path}</span>
+      <span class="status ${statusClass}">${status || 'ERR'} · ${ms}ms</span>
+    </div>
+    <div class="response-body">${JSON.stringify(response, null, 2)}</div>
+  `;
+            log.prepend(entry);
+        }
+
+        function showResponse(containerId, status, data) {
+            const el = document.getElementById(containerId);
+            el.classList.remove('hidden');
+            const statusClass = status >= 500 ? 'status-5xx' : status >= 400 ? 'status-4xx' : 'status-2xx';
+            el.innerHTML = `
+    <div class="response-header">
+      <span>Response</span>
+      <span class="status ${statusClass}">${status}</span>
+    </div>
+    <div class="response-body">${JSON.stringify(data, null, 2)}</div>
+  `;
+        }
+
+        function toast(message, type = 'success') {
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.textContent = message;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        function updateAuthBar() {
+            const el = document.getElementById('auth-status');
+            const btn = document.getElementById('logout-btn');
+            if (currentUser) {
+                el.innerHTML = `
+      <div class="avatar">${currentUser.username[0].toUpperCase()}</div>
+      <div>
+        <div class="username">${currentUser.username}</div>
+      </div>
+      <span class="role">${currentUser.role}</span>
+    `;
+                btn.style.display = 'block';
+            } else {
+                el.innerHTML = '<span class="not-logged-in">Not logged in</span>';
+                btn.style.display = 'none';
+            }
+        }
+
+        // ═══════ NAVIGATION ═══════
+        function showPage(pageId) {
+            document.querySelectorAll('.section-page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('page-' + pageId)?.classList.add('active');
+            event?.target?.closest('.nav-item')?.classList.add('active');
+        }
+
+        // ═══════ AUTH ═══════
+        async function doRegister() {
+            const body = {
+                username: document.getElementById('reg-username').value,
+                email: document.getElementById('reg-email').value,
+                password: document.getElementById('reg-password').value,
+                password_confirm: document.getElementById('reg-password-confirm').value,
+                role: document.getElementById('reg-role').value,
+            };
+            const res = await api('POST', '/auth/register/', body, true);
+            showResponse('reg-response', res.status, res.data);
+            if (res.ok) {
+                accessToken = res.data.tokens?.access;
+                refreshToken = res.data.tokens?.refresh;
+                currentUser = res.data.user;
+                updateAuthBar();
+                toast('Registered successfully!');
+            }
+        }
+
+        async function doLogin() {
+            const body = {
+                username: document.getElementById('login-username').value,
+                password: document.getElementById('login-password').value,
+            };
+            const res = await api('POST', '/auth/login/', body, true);
+            showResponse('login-response', res.status, res.data);
+            if (res.ok) {
+                accessToken = res.data.tokens?.access;
+                refreshToken = res.data.tokens?.refresh;
+                currentUser = res.data.user;
+                updateAuthBar();
+                toast('Logged in!');
+            }
+        }
+
+        async function doLogout() {
+            if (refreshToken) await api('POST', '/auth/logout/', { refresh: refreshToken });
+            accessToken = null;
+            refreshToken = null;
+            currentUser = null;
+            updateAuthBar();
+            toast('Logged out');
+        }
+
+        // ═══════ CATEGORIES ═══════
+        async function loadCategories() {
+            const res = await api('GET', '/categories/');
+            const el = document.getElementById('categories-list');
+            if (res.ok) {
+                const cats = res.data.results || res.data;
+                if (cats.length === 0) {
+                    el.innerHTML = '<p style="color:var(--text2);font-size:13px;">No categories yet</p>';
+                } else {
+                    el.innerHTML = cats.map(c => `
+        <div class="quiz-card">
+          <div class="quiz-info">
+            <h4>${c.name}</h4>
+            <div class="quiz-meta">
+              <span>${c.description || 'No description'}</span>
+              <span>Quizzes: ${c.quiz_count ?? '?'}</span>
+            </div>
+          </div>
+          <code style="font-size:11px;color:var(--text2)">${c.id}</code>
+        </div>
+      `).join('');
+                }
+            }
+        }
+
+        async function createCategory() {
+            const body = {
+                name: document.getElementById('cat-name').value,
+                description: document.getElementById('cat-desc').value,
+            };
+            const res = await api('POST', '/categories/', body);
+            if (res.ok) {
+                toast('Category created!');
+                loadCategories();
+            } else {
+                toast(res.data?.name?.[0] || res.data?.message || 'Failed', 'error');
+            }
+        }
+
+        // ═══════ QUIZZES ═══════
+        async function createQuiz() {
+            const body = {
+                title: document.getElementById('quiz-title').value,
+                topic: document.getElementById('quiz-topic').value,
+                difficulty: document.getElementById('quiz-difficulty').value,
+                number_of_questions: parseInt(document.getElementById('quiz-count').value),
+            };
+            const cat = document.getElementById('quiz-category').value.trim();
+            if (cat) body.category = cat;
+
+            const res = await api('POST', '/quizzes/', body);
+            showResponse('quiz-create-response', res.status, res.data);
+            if (res.ok) {
+                const status = res.data.status;
+                if (status === 'ready') toast('Quiz created with AI questions!');
+                else if (status === 'failed') toast('Quiz created but AI generation failed. Try regenerate.', 'error');
+                else toast('Quiz created! Status: ' + status);
+            } else {
+                toast('Failed to create quiz', 'error');
+            }
+        }
+
+        async function loadMyQuizzes() {
+            const res = await api('GET', '/quizzes/my_quizzes/');
+            const el = document.getElementById('my-quizzes-list');
+            if (res.ok) {
+                const quizzes = res.data.results || res.data;
+                if (quizzes.length === 0) {
+                    el.innerHTML = '<p style="color:var(--text2);font-size:13px;">No quizzes yet. Create one!</p>';
+                } else {
+                    el.innerHTML = quizzes.map(q => `
+        <div class="quiz-card">
+          <div class="quiz-info">
+            <h4>${q.title}</h4>
+            <div class="quiz-meta">
+              <span>${q.difficulty}</span>
+              <span>${q.number_of_questions} questions</span>
+              <span class="badge ${q.status === 'ready' ? 'badge-green' : q.status === 'failed' ? 'badge-red' : 'badge-orange'}">${q.status}</span>
+              <span class="badge ${q.is_published ? 'badge-green' : 'badge-orange'}">${q.is_published ? 'Published' : 'Draft'}</span>
+            </div>
+          </div>
+          <div class="quiz-actions">
+            ${!q.is_published ? `<button class="btn btn-sm btn-success" onclick="publishQuiz('${q.id}')">Publish</button>` : ''}
+            ${q.status === 'failed' ? `<button class="btn btn-sm btn-outline" onclick="regenerateQuiz('${q.id}')">Retry AI</button>` : ''}
+            ${q.status === 'ready' ? `<button class="btn btn-sm btn-primary" onclick="startAttempt('${q.id}')">Start Quiz</button>` : ''}
+            <button class="btn btn-sm btn-outline" onclick="viewQuizDetail('${q.id}')">Details</button>
+          </div>
+        </div>
+      `).join('');
+                }
+            }
+        }
+
+        async function loadAllQuizzes() {
+            let path = '/quizzes/?';
+            const diff = document.getElementById('filter-difficulty').value;
+            const search = document.getElementById('filter-search').value;
+            if (diff) path += `difficulty=${diff}&`;
+            if (search) path += `search=${search}&`;
+
+            const res = await api('GET', path);
+            const el = document.getElementById('all-quizzes-list');
+            if (res.ok) {
+                const quizzes = res.data.results || res.data;
+                if (quizzes.length === 0) {
+                    el.innerHTML = '<p style="color:var(--text2);font-size:13px;">No quizzes found</p>';
+                } else {
+                    el.innerHTML = quizzes.map(q => `
+        <div class="quiz-card">
+          <div class="quiz-info">
+            <h4>${q.title}</h4>
+            <div class="quiz-meta">
+              <span>${q.topic || ''}</span>
+              <span>${q.difficulty}</span>
+              <span>${q.number_of_questions} questions</span>
+            </div>
+          </div>
+          <div class="quiz-actions">
+            <button class="btn btn-sm btn-primary" onclick="startAttempt('${q.id}')">Start Quiz</button>
+          </div>
+        </div>
+      `).join('');
+                }
+            }
+        }
+
+        async function publishQuiz(id) {
+            const res = await api('POST', `/quizzes/${id}/publish/`);
+            if (res.ok) { toast('Published!'); loadMyQuizzes(); }
+            else toast('Failed to publish', 'error');
+        }
+
+        async function regenerateQuiz(id) {
+            const res = await api('POST', `/quizzes/${id}/regenerate/`);
+            if (res.ok) { toast('Regeneration started!'); loadMyQuizzes(); }
+            else toast(res.data?.message || 'Failed', 'error');
+        }
+
+        async function viewQuizDetail(id) {
+            const res = await api('GET', `/quizzes/${id}/`);
+            if (res.ok) {
+                const q = res.data;
+                const questions = q.questions || [];
+                showPage('api-log'); // reuse log page to show detail
+                const el = document.getElementById('api-log-entries');
+                el.innerHTML = `
+      <div class="card">
+        <div class="card-title">${q.title} <span class="badge ${q.status === 'ready' ? 'badge-green' : 'badge-red'}">${q.status}</span></div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">${q.topic}</p>
+        <p style="font-size:12px;color:var(--text2);">Questions: ${questions.length}</p>
+        ${questions.map((qq, i) => `
+          <div class="question-card" style="margin-top:8px;">
+            <div class="q-number">Q${i + 1}</div>
+            <h4>${qq.question_text}</h4>
+            ${(qq.options || []).map((o, j) => `
+              <div class="option-btn ${j === qq.correct_option ? 'correct' : ''}" style="cursor:default">${o}</div>
+            `).join('')}
+            ${qq.explanation ? `<div class="explanation">${qq.explanation}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    ` + el.innerHTML;
+            }
+        }
+
+        // ═══════ ATTEMPT FLOW ═══════
+        async function startAttempt(quizId) {
+            const res = await api('POST', `/attempts/start/${quizId}/`);
+            if (res.ok) {
+                currentAttempt = res.data;
+                currentQuestions = res.data.questions || [];
+                answeredQuestions = {};
+                toast('Quiz started!');
+                showPage('attempt');
+                renderAttempt();
+            } else {
+                toast(res.data?.message || res.data?.error || 'Failed to start', 'error');
+            }
+        }
+
+        function renderAttempt() {
+            const area = document.getElementById('attempt-area');
+            const subtitle = document.getElementById('attempt-subtitle');
+
+            if (!currentAttempt) {
+                area.innerHTML = '<div class="card"><p style="color:var(--text2)">No active attempt</p></div>';
+                return;
+            }
+
+            const isCompleted = currentAttempt.status === 'completed';
+            subtitle.textContent = isCompleted
+                ? `Results for: ${currentAttempt.quiz_title || 'Quiz'}`
+                : `Taking: ${currentAttempt.quiz_title || 'Quiz'} · ${Object.keys(answeredQuestions).length}/${currentQuestions.length} answered`;
+
+            if (isCompleted) {
+                renderResults();
+                return;
+            }
+
+            let html = '';
+            currentQuestions.forEach((q, i) => {
+                const answered = answeredQuestions[q.id];
+                html += `
+      <div class="question-card">
+        <div class="q-number">Question ${i + 1} of ${currentQuestions.length}
+          ${answered !== undefined ? '<span class="badge badge-green" style="margin-left:8px">Answered</span>' : ''}
+        </div>
+        <h4>${q.question_text}</h4>
+        ${(q.options || []).map((o, j) => `
+          <button class="option-btn ${answered === j ? 'selected' : ''}"
+            ${answered !== undefined ? 'disabled' : ''}
+            onclick="submitAnswer('${q.id}', ${j}, this)">
+            ${o}
+          </button>
+        `).join('')}
+      </div>
+    `;
+            });
+
+            html += `
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-success" onclick="completeAttempt()"
+        ${Object.keys(answeredQuestions).length === 0 ? 'disabled' : ''}>
+        Complete Quiz (${Object.keys(answeredQuestions).length}/${currentQuestions.length} answered)
+      </button>
+    </div>
+  `;
+
+            area.innerHTML = html;
+        }
+
+        async function submitAnswer(questionId, selectedOption, btnEl) {
+            const res = await api('POST', `/attempts/${currentAttempt.id}/submit_answer/`, {
+                question_id: questionId,
+                selected_option: selectedOption,
+            });
+
+            if (res.ok) {
+                answeredQuestions[questionId] = selectedOption;
+                renderAttempt();
+            } else {
+                toast(res.data?.message || 'Failed to submit answer', 'error');
+            }
+        }
+
+        async function completeAttempt() {
+            const res = await api('POST', `/attempts/${currentAttempt.id}/complete/`);
+            if (res.ok) {
+                currentAttempt = res.data;
+                currentQuestions = res.data.questions || currentQuestions;
+                toast('Quiz completed! Check your results.');
+                renderResults();
+            } else {
+                toast(res.data?.message || 'Failed to complete', 'error');
+            }
+        }
+
+        function renderResults() {
+            const area = document.getElementById('attempt-area');
+            const a = currentAttempt;
+            const answers = a.answers || [];
+
+            // Build answer lookup: question_id -> answer
+            const answerMap = {};
+            answers.forEach(ans => { answerMap[ans.question_id] = ans; });
+
+            let html = `
+    <div class="score-display card">
+      <div class="big-score">${a.score_percentage != null ? parseFloat(a.score_percentage).toFixed(0) + '%' : '—'}</div>
+      <div class="score-sub">${a.correct_answers || 0} correct out of ${a.total_questions} questions</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Score</div>
+        <div class="stat-value green">${a.correct_answers || 0}/${a.total_questions}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Percentage</div>
+        <div class="stat-value purple">${a.score_percentage != null ? parseFloat(a.score_percentage).toFixed(1) : 0}%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Status</div>
+        <div class="stat-value blue">${a.status}</div>
+      </div>
+    </div>
+  `;
+
+            // Show questions with results
+            const questions = a.questions || currentQuestions;
+            questions.forEach((q, i) => {
+                const ans = answerMap[q.id];
+                const selected = ans?.selected_option;
+                const isCorrect = ans?.is_correct;
+
+                html += `
+      <div class="question-card">
+        <div class="q-number">Question ${i + 1}
+          ${isCorrect ? '<span class="badge badge-green" style="margin-left:8px">Correct</span>'
+                        : '<span class="badge badge-red" style="margin-left:8px">Wrong</span>'}
+        </div>
+        <h4>${q.question_text}</h4>
+        ${(q.options || []).map((o, j) => {
+                            let cls = '';
+                            if (j === q.correct_option) cls = 'correct';
+                            else if (j === selected && !isCorrect) cls = 'wrong';
+                            return `<div class="option-btn ${cls}" style="cursor:default">${o} ${j === q.correct_option ? ' ✓' : ''}${j === selected && j !== q.correct_option ? ' ✗' : ''}</div>`;
+                        }).join('')}
+        ${q.explanation ? `<div class="explanation">${q.explanation}</div>` : ''}
+      </div>
+    `;
+            });
+
+            html += `<button class="btn btn-outline" onclick="currentAttempt=null;currentQuestions=[];answeredQuestions={};renderAttempt();" style="margin-top:16px">Clear & Take Another Quiz</button>`;
+
+            area.innerHTML = html;
+        }
+
+        // ═══════ ANALYTICS ═══════
+        async function loadMyStats() {
+            const [statsRes, catRes] = await Promise.all([
+                api('GET', '/analytics/me/'),
+                api('GET', '/analytics/me/categories/'),
+            ]);
+
+            const el = document.getElementById('stats-area');
+
+            if (statsRes.ok) {
+                const s = statsRes.data;
+                let html = `
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Quizzes Attempted</div><div class="stat-value purple">${s.total_quizzes_attempted || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value green">${s.total_completed || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value orange">${s.total_in_progress || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">Average Score</div><div class="stat-value blue">${s.average_score_percentage != null ? parseFloat(s.average_score_percentage).toFixed(1) + '%' : '—'}</div></div>
+        <div class="stat-card"><div class="stat-label">Best Score</div><div class="stat-value green">${s.best_score_percentage != null ? parseFloat(s.best_score_percentage).toFixed(1) + '%' : '—'}</div></div>
+        <div class="stat-card"><div class="stat-label">Overall Accuracy</div><div class="stat-value purple">${s.overall_accuracy != null ? parseFloat(s.overall_accuracy).toFixed(1) + '%' : '—'}</div></div>
+        <div class="stat-card"><div class="stat-label">Questions Answered</div><div class="stat-value blue">${s.total_questions_answered || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">Correct Answers</div><div class="stat-value green">${s.correct_answers_total || 0}</div></div>
+      </div>
+    `;
+
+                if (catRes.ok) {
+                    const cats = catRes.data;
+                    if (cats.length > 0) {
+                        html += `<div class="card"><div class="card-title">Performance by Category</div>`;
+                        cats.forEach(c => {
+                            html += `
+            <div class="quiz-card">
+              <div class="quiz-info">
+                <h4>${c.category_name || 'Uncategorized'}</h4>
+                <div class="quiz-meta">
+                  <span>${c.quizzes_attempted} quizzes</span>
+                  <span>${c.total_attempts} attempts</span>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:18px;font-weight:700;color:var(--accent2)">${c.average_score != null ? parseFloat(c.average_score).toFixed(1) + '%' : '—'}</div>
+                <div style="font-size:11px;color:var(--text2)">avg score</div>
+              </div>
+            </div>
+          `;
+                        });
+                        html += `</div>`;
+                    }
+                }
+
+                html += `<button class="btn btn-outline btn-sm" onclick="loadMyStats()" style="margin-top:12px">Refresh</button>`;
+                el.innerHTML = html;
+            } else {
+                el.innerHTML = `<p style="color:var(--red)">Failed to load stats</p>`;
+            }
+        }
+
+        async function loadLeaderboard() {
+            const res = await api('GET', '/analytics/leaderboard/');
+            const el = document.getElementById('leaderboard-area');
+
+            if (res.ok) {
+                const entries = res.data;
+                if (entries.length === 0) {
+                    el.innerHTML = '<p style="color:var(--text2)">No data yet. Complete some quizzes first!</p>';
+                    return;
+                }
+
+                let html = '';
+                entries.forEach((e, i) => {
+                    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+                    html += `
+        <div class="lb-row">
+          <div class="lb-rank ${rankClass}">#${e.rank}</div>
+          <div class="lb-name">${e.username}</div>
+          <div class="lb-score">${e.average_score != null ? parseFloat(e.average_score).toFixed(1) : 0}% avg</div>
+          <div style="font-size:12px;color:var(--text2)">${e.total_quizzes_completed} quizzes</div>
+        </div>
+      `;
+                });
+
+                html += `<button class="btn btn-outline btn-sm" onclick="loadLeaderboard()" style="margin-top:12px">Refresh</button>`;
+                el.innerHTML = html;
+            }
+        }
+
+        // ═══════ INIT ═══════
+        updateAuthBar();
+    </script>
+
+</body>
+
+</html>
