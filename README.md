@@ -78,6 +78,35 @@ python manage.py runserver
 ```bash
 python manage.py test
 ```
+## Design Decisions
+
+The system is designed as a modular monolith with 5 Django apps — accounts, quizzes, ai_service, attempts, and analytics. Each app owns one responsibility and dependencies flow in one direction: accounts depends on nothing, quizzes depends on accounts, ai_service depends on quizzes, attempts depends on both accounts and quizzes, and analytics reads from attempts and quizzes but writes nothing. This structure keeps the codebase navigable and makes it possible to extract any module into a standalone service if needed later.
+
+Authentication uses JWT tokens with a short-lived access token (60 minutes) and a long-lived refresh token (7 days). The access token is stateless — no database lookup on every request. The refresh token supports rotation and blacklisting, so when a user logs out, the refresh token is invalidated immediately. All endpoints require authentication by default; public endpoints like register and login explicitly opt out. This "secure by default" approach means forgetting to add permissions to a new endpoint results in it being private, not public.
+
+The User model extends Django's AbstractUser with UUID primary keys and a role-based access control system. UUIDs prevent sequential ID enumeration on a public API. The role field (admin/player) is separate from Django's is_staff because app-level permissions and Django admin panel access are different concerns. Admin users have full visibility across the system — they see all quizzes, all attempts, and can manage user accounts. Players only see published quizzes and their own data.
+
+Quiz creation triggers AI question generation synchronously through a service layer that abstracts the AI provider behind a single class. The Quiz model uses a status field (pending → generating → ready → failed) to track the generation lifecycle, which also makes the system ready for async processing with Celery without any schema changes. The AI service validates each generated question individually — if some are malformed, the valid ones are saved rather than failing the entire quiz. Every AI call is logged with the prompt, response, timing, and any errors for debugging.
+
+The attempt flow is designed around answer security. When a user starts an attempt, questions are served without correct answers or explanations. Answers are submitted one at a time and the response confirms receipt but does not reveal correctness. Only when the user completes the attempt does the system calculate the score and reveal all correct answers, explanations, and per-question results. This is enforced at the serializer level — different serializers physically include or exclude fields based on attempt status, so even direct API calls cannot bypass this.
+
+Data integrity for historical attempts is maintained through deliberate denormalization. The total question count is snapshotted at attempt creation so future quiz edits don't corrupt historical scores. Correct answer counts and score percentages are computed once on completion and stored, avoiding expensive aggregation queries on every analytics or leaderboard request. The is_correct field on each answer is computed on save to eliminate joins in per-question accuracy analytics.
+
+Caching is applied selectively — only on data where slight staleness is acceptable (category list and quiz-level stats for creators) and explicitly avoided on user-facing analytics where users expect to see their new scores immediately. API rate limiting operates at three tiers: anonymous users (20/hour), authenticated users (200/hour), and quiz creation (10/hour) since each creation triggers an external AI call with its own cost and rate limits.
+
+The system includes several production-readiness features beyond core functionality. 
+
+-API rate limiting operates at three tiers — anonymous users at 20 requests per hour to prevent brute-force attacks, authenticated users at 200 per hour for general usage, and a stricter 10 per hour specifically for quiz creation since each triggers an external AI call.
+
+-API documentation is auto-generated from the codebase using drf-spectacular, serving both Swagger UI and ReDoc interfaces for frontend developers to explore and 
+test endpoints.
+
+-All endpoints are versioned under /api/v1/ using URL path versioning so future breaking changes can be introduced as v2 without disrupting existing clients.
+
+-The test suite covers 27 automated tests across all modules — authentication flows, permission enforcement, the complete attempt lifecycle, score calculation accuracy, and answer visibility logic — using mocked AI calls so tests run fast without external dependencies.
+
+-The Admin Interface is customized with inline question editing, attempt inspection, and AI generation log review for operational monitoring.
+
 
 ---
 
@@ -296,16 +325,3 @@ python manage.py test attempts           # Run only attempt tests
 python manage.py test analytics          # Run only analytics tests
 ```
 
----
-
-## Potential Improvements
-
-Given more time, I would add:
-
-- **Background task processing**: Celery + Redis for async AI generation — the schema already supports this via the status field
-- **Quiz time enforcement**: Backend check on `submit_answer` and `complete` to auto-timeout attempts that exceed `time_limit_seconds`
-- **More question types**: True/False and Multiple Select — the `question_type` field already exists for extensibility
-- **WebSocket support**: Real-time quiz sessions for competitive multiplayer
-- **Docker containerization**: Dockerfile and docker-compose for consistent deployment
-- **CI/CD pipeline**: GitHub Actions for automated testing on push
-- **Redis cache backend**: Replace in-memory cache with Redis for production multi-process environments
