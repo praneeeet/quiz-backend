@@ -38,7 +38,7 @@ class QuizzesTests(APITestCase):
         response = self.client.post(self.cat_url, {'name': 'Geography'})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @patch('quizzes.views.QuizGenerator')
+    @patch('ai_service.generator.QuizGenerator')
     def test_quiz_creation_mocks_ai(self, mock_gen):
         # Quiz creation should trigger AI generation (mocked)
         self.client.force_authenticate(user=self.player)

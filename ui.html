@@ -955,7 +955,7 @@
     </div>
 
     <script>
-        const API = 'http://127.0.0.1:8000/api/v1';
+        const API = 'https://quiz-backend-production-9038.up.railway.app/api/v1';
         let accessToken = null, refreshToken = null, currentUser = null, currentAttempt = null, currentQuestions = [], answeredQuestions = {};
 
         async function api(method, path, body = null, skipAuth = false) {

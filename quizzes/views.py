@@ -10,7 +10,6 @@ from .serializers import (
 )
 from accounts.permissions import IsAdmin
 from .permissions import IsOwnerOrAdmin, IsQuizOwner
-from ai_service.generator import QuizGenerator
 from .throttles import QuizCreateThrottle
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -119,9 +118,13 @@ class QuizViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         quiz = serializer.save(created_by=self.request.user)
-        # Synchronous generation for now as requested
-        generator = QuizGenerator()
-        generator.generate_questions(quiz)
+        try:
+            from ai_service.tasks import generate_quiz_questions_task
+            generate_quiz_questions_task.delay(str(quiz.id))
+        except Exception:
+            from ai_service.generator import QuizGenerator
+            generator = QuizGenerator()
+            generator.generate_questions(quiz)
 
     @action(detail=False, methods=['get'])
     def my_quizzes(self, request):
@@ -147,22 +150,27 @@ class QuizViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def regenerate(self, request, pk=None):
         quiz = self.get_object()
-        if quiz.status == Quiz.Status.FAILED:
-            # Delete existing questions
-            Question.objects.filter(quiz=quiz).delete()
-            # Trigger regeneration
+        if quiz.status != Quiz.Status.FAILED:
+            return Response(
+                {"error": "invalid_operation", "message": "Only quizzes with 'failed' status can be regenerated."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        Question.objects.filter(quiz=quiz).delete()
+        quiz.status = Quiz.Status.PENDING
+        quiz.save()
+        
+        try:
+            from ai_service.tasks import generate_quiz_questions_task
+            generate_quiz_questions_task.delay(str(quiz.id))
+        except Exception:
+            from ai_service.generator import QuizGenerator
             generator = QuizGenerator()
             generator.generate_questions(quiz)
-            
-            # Reload from DB to get updated status and questions
             quiz.refresh_from_db()
-            
-            return Response({
-                "status": "success",
-                "message": "Quiz regeneration completed.",
-                "quiz": self.get_serializer(quiz).data
-            })
+        
         return Response({
-            "error": "invalid_operation",
-            "message": "Only quizzes with 'failed' status can be regenerated."
-        }, status=status.HTTP_400_BAD_REQUEST)
+            "status": "success",
+            "message": "Quiz regeneration started.",
+            "quiz_status": quiz.status
+        })
