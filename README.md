@@ -117,6 +117,32 @@ test endpoints.
 
 -The Admin Interface is customized with inline question editing, attempt inspection, and AI generation log review for operational monitoring.
 
+---
+
+## 🤖 AI Integration Strategy
+
+The system utilizes a **Provider-Agnostic Interface** (`BaseQuizProvider`) that abstracts the specifics of different AI services. This decoupled design allowed us to implement a robust multi-provider strategy:
+
+- **Multi-Provider Fallback**: We implement a chain-of-responsibility pattern. If the primary provider (Groq) fails due to rate limits or downtime, the system automatically tries Google Gemini, and finally falls back to OpenRouter.
+- **Detailed Audit Trail**: Every AI generation attempt is logged in the `AIGenerationLog` model, capturing the exact prompt, raw response, latency, and any error messages.
+- **Fail-safe Task Processing**: While we prefer background processing via Celery for better UX, we've implemented a **Hybrid Generation Logic**. If the Celery worker or Redis broker is offline, the system gracefully falls back to synchronous generation, ensuring the core functionality is always available.
+
+---
+
+## 🚧 Challenges Faced & Solutions
+
+- **Challenge: Unreliable AI JSON Formatting**
+  - **Context**: AI models occasionally include preamble text ("Here is your quiz...") or wrap the result in markdown code blocks, which breaks standard JSON parsers.
+  - **Solution**: Developed a specialized `_parse_response` utility that uses regex and string manipulation to strip markdown ticks and extract only the valid JSON payload before validation.
+
+- **Challenge: Balancing Answer Security with User Experience**
+  - **Context**: We needed to allow quiz creators to see their own answers while strictly hiding them from players who are currently attempting the quiz.
+  - **Solution**: Implemented dynamic serializer switching in the `QuizViewSet`. The API detects the user's relationship to the quiz and serves a "Redacted" version of the questions to players, ensuring correct answers never leave the server during an active attempt.
+
+- **Challenge: Avoiding Sequential ID Guessing**
+  - **Context**: Using standard integer IDs (1, 2, 3) makes the API vulnerable to enumeration attacks where users can guess and access private quiz data.
+  - **Solution**: Migrated the entire database schema to use **UUIDv4** for all primary keys. This makes IDs non-guessable and adds an essential layer of security to the RESTful interface.
+
 
 ---
 
